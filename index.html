@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>靈魂識海 | 九大植物人格鑑定</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc, deleteDoc, writeBatch, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'soul-ocean-final-release';
+
+        window.apiSaveData = async (data) => {
+            if (!auth.currentUser) return;
+            const ref = document.referrer || "直接進入";
+            try {
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'quiz_results');
+                await addDoc(colRef, { ...data, platform: ref, updatedAt: serverTimestamp() });
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats_summary', 'total'), { completeCount: increment(1) }, { merge: true });
+            } catch (e) { console.error("Save Error:", e); }
+        };
+
+        window.apiFetchAdminData = async () => {
+            try {
+                const resultsSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'quiz_results'));
+                const totalSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats_summary', 'total'));
+                return { 
+                    results: resultsSnap.docs.map(d => ({ id: d.id, ...d.data() })), 
+                    stats: totalSnap.exists() ? totalSnap.data() : {} 
+                };
+            } catch (e) { return { results: [], stats: {} }; }
+        };
+
+        window.apiClearAllData = async () => {
+            try {
+                const resultsSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'quiz_results'));
+                const batch = writeBatch(db);
+                resultsSnap.docs.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats_summary', 'total'), { completeCount: 0 }, { merge: true });
+                return true;
+            } catch (e) { console.error("Clear Error:", e); return false; }
+        };
+
+        (async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stats_summary', 'total'), { visitCount: increment(1) }, { merge: true });
+        })();
+    </script>
+
+    <style>
+        :root { --ocean-dark: #010814; --ocean-mid: #0a1b33; --cyan-glow: #00f2ff; --text-light: #e0e6ed; }
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background-color: var(--ocean-dark); 
+            background-image: radial-gradient(circle at center, #0a1b33 0%, #010814 100%);
+            background-size: cover; background-position: center; background-attachment: fixed;
+            color: var(--text-light); margin: 0; overflow-x: hidden;
+        }
+        .serif { font-family: 'Noto Serif TC', serif; }
+        .adventure-container { max-width: 500px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+        
+        .admin-trigger { 
+            position: fixed; top: 15px; right: 15px; 
+            background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.15); 
+            padding: 8px 12px; border-radius: 8px; font-size: 8px; z-index: 9999; cursor: pointer;
+            backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .main-title { font-size: 3.5rem; letter-spacing: 0.15em; text-shadow: 0 0 25px rgba(0, 242, 255, 0.6); animation: glow-pulse 4s infinite ease-in-out; }
+        @keyframes glow-pulse { 0%, 100% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.02); } }
+        
+        .sub-title { font-size: 1.1rem; color: var(--cyan-glow); opacity: 0.9; margin-top: 5px; font-weight: 700; letter-spacing: 0.05em; }
+
+        .classic-start-btn { 
+            background: linear-gradient(135deg, #00f2ff 0%, #00a2ff 100%); 
+            color: #020b1a; padding: 18px 0; border-radius: 50px; 
+            font-weight: 900; font-size: 1.1rem; border: none; cursor: pointer; 
+            box-shadow: 0 10px 30px rgba(0, 242, 255, 0.3); 
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            letter-spacing: 0.15em;
+            display: block; width: 280px; margin: 0 auto;
+        }
+        .classic-start-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0, 242, 255, 0.5); }
+        .classic-start-btn:active { transform: scale(0.96); }
+
+        .option-btn { background: rgba(255,255,255,0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 18px; margin-bottom: 12px; width: 100%; text-align: left; color: #fff; font-size: 0.95rem; line-height: 1.6; backdrop-filter: blur(10px); }
+        .option-btn:active { background: var(--cyan-glow); color: #020b1a; box-shadow: 0 0 20px var(--cyan-glow); }
+        
+        #capture-area { background: #fff; color: #1a365d; border-radius: 30px; position: relative; overflow: hidden; box-shadow: 0 15px 50px rgba(0,0,0,0.5); }
+        .report-section { border-top: 1px solid #f0f4f8; padding-top: 18px; margin-top: 18px; }
+        
+        .advanced-card { background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%); border: 1px solid rgba(142, 68, 173, 0.35); padding: 24px; border-radius: 32px; text-align: center; }
+        .advanced-btn { background: linear-gradient(135deg, #8e44ad 0%, #2980b9 100%); color: white; padding: 18px; border-radius: 18px; font-weight: 900; font-size: 1rem; width: 100%; display: block; box-shadow: 0 10px 30px rgba(142, 68, 173, 0.3); animation: pulse-glow 2.5s infinite; transition: 0.3s; }
+        
+        .typewriter-box { min-height: 380px; line-height: 2.3; font-size: 1.1rem; letter-spacing: 0.12em; text-align: center; display: flex; align-items: center; justify-content: center; }
+        .fade-in { animation: fadeIn 2s ease-in forwards; opacity: 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .hidden { display: none; }
+        #admin-panel { position: fixed; inset: 0; background: #f1f5f9; color: #334155; z-index: 10000; overflow-y: auto; display: none; padding: 20px; }
+        .admin-btn-action { padding: 10px 16px; border-radius: 12px; font-size: 12px; font-weight: 700; transition: 0.2s; }
+    </style>
+</head>
+<body>
+
+    <audio id="bg-audio" src="https://changsberry.github.io/plant-adventure/深海鑑定背景樂.mp3"></audio>
+
+    <div class="admin-trigger" onclick="showLoginModal()">Powered by 未熟莓創研室</div>
+
+    <!-- 步驟 1：封面 (Landing Screen) -->
+    <div id="landing-screen" class="flex flex-col justify-between min-h-screen p-8 py-20 text-center">
+        <div class="mt-4">
+            <h1 class="main-title font-black serif text-white mb-2 text-center text-glow">靈魂識海</h1>
+            <p class="sub-title serif text-center text-glow">這是一次「ABOUT YOU」的實驗</p>
+            
+            <div class="mt-14 space-y-8">
+                <p class="text-cyan-500 text-[10px] font-bold tracking-[0.6em] uppercase opacity-70">Academic Foundation</p>
+                <div class="text-blue-100/60 text-sm serif leading-relaxed px-4 text-center max-w-sm mx-auto space-y-6">
+                    <p>本鑑定系統由「植感生活」研發，<br>結合了 <span class="text-cyan-400 font-bold">心理芳療</span> 研究與<br>國際芳療體系（IFPA、NAHA）<br>的學術底層。</p>
+                    
+                    <p>在識海之中，所有的選擇都沒有對錯，<br>只有最真實的波頻共振。<br>我們將透過 18 個關鍵維度，<br>拆解您的靈魂原型。</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center w-full">
+            <p class="text-blue-200 mb-6 font-bold tracking-widest text-center text-sm leading-loose px-4">
+                這是一場 「九大植物型人格測驗」<br>
+                請準備好，迎接那個未曾被察覺的自己。
+            </p>
+            <div class="text-center">
+                <button onclick="startNarration()" class="classic-start-btn shadow-2xl">開啟航行 ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="adventure-container">
+        <!-- 步驟 2：首頁 (旁白頁) -->
+        <div id="home-screen" class="hidden flex flex-col justify-between min-h-screen p-10 py-24 text-center">
+            <div class="typewriter-box serif text-cyan-50/90" id="narration-box"></div>
+            <div id="home-action" class="hidden fade-in mt-12 text-center">
+                <button onclick="startQuiz()" class="classic-start-btn font-black shadow-2xl">開始您的鑑定 ➔</button>
+            </div>
+        </div>
+
+        <!-- 十八題測驗區 -->
+        <div id="quiz-screen" class="hidden p-8 py-14 flex flex-col min-h-screen text-center">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-cyan-500 text-[10px] font-bold tracking-widest uppercase font-black">Exploring</span>
+                <span class="text-white text-xs" id="q-number">01 / 18</span>
+            </div>
+            <div class="w-full bg-white/10 h-[2px] rounded-full mb-12"><div id="progress-fill" class="h-full bg-cyan-400 shadow-[0_0_15px_#00f2ff] transition-all duration-500" style="width: 0%"></div></div>
+            <h2 id="question-text" class="text-xl font-bold mb-10 text-white leading-relaxed min-h-[90px] serif text-center"></h2>
+            <div id="options-box" class="flex-grow text-left"></div>
+            <button id="back-btn" onclick="goBack()" class="text-white/20 text-xs mt-6 underline text-center hidden">返回上一層</button>
+        </div>
+
+        <!-- 姓名輸入 -->
+        <div id="name-screen" class="hidden p-10 text-center py-24 min-h-screen">
+            <h2 class="text-3xl font-black mb-6 text-white serif">解碼終點</h2>
+            <p class="text-blue-300/60 text-sm mb-12 leading-loose">鑑定已完成。請輸入稱呼，<br>為您的靈魂識海賦名。</p>
+            <input type="text" id="user-name" placeholder="您的名字" class="w-full bg-transparent border-b-2 border-cyan-700 text-center text-3xl text-cyan-400 outline-none mb-20 py-3 font-bold">
+            <div class="text-center">
+                <button onclick="calculateResult()" class="classic-start-btn shadow-2xl">生成鑑定報告</button>
+            </div>
+        </div>
+
+        <!-- 結果報告 -->
+        <div id="result-screen" class="hidden p-6 min-h-screen">
+            <div id="capture-area" class="p-8">
+                <div id="res-icon" class="text-6xl mb-4 text-center drop-shadow-md"></div>
+                <div class="text-center border-b pb-6 mb-6">
+                    <p class="text-[10px] tracking-[0.4em] text-blue-400 font-bold uppercase mb-2">Soul Sea Archetype Report</p>
+                    <h2 id="res-type" class="text-3xl font-black text-blue-900 serif"></h2>
+                </div>
+                
+                <div class="report-section">
+                    <h3 class="text-sm font-bold text-blue-800 mb-3 text-glow">● 靈魂共鳴</h3>
+                    <p id="res-desc" class="text-[13px] text-gray-700 leading-relaxed"></p>
+                </div>
+                
+                <div class="report-section">
+                    <h3 class="text-sm font-bold text-blue-800 mb-3 text-glow">● 行為特質</h3>
+                    <ul id="res-traits" class="text-[12px] text-gray-600 space-y-2 list-disc pl-4"></ul>
+                </div>
+
+                <!-- 植物人格精油投放系統 -->
+                <div class="report-section">
+                    <h3 class="text-sm font-bold text-blue-800 mb-3 text-glow">● 靈魂本質精油 (你是誰)</h3>
+                    <div class="bg-blue-50/50 p-5 rounded-3xl mb-4 border border-blue-100">
+                        <div class="flex justify-between items-end mb-2">
+                            <p class="text-xs text-blue-400 font-bold">靈魂精油：<span id="soul-oil-name" class="text-blue-900"></span></p>
+                            <p id="soul-oil-tag" class="text-xl font-black text-blue-600 italic"></p>
+                        </div>
+                        <p class="text-[11px] text-gray-600 leading-relaxed">它最懂您的細膩與堅持，能穩定您的靈魂核心頻率，讓您在自己的世界裡優雅綻放。</p>
+                    </div>
+                    
+                    <h3 class="text-sm font-bold text-blue-800 mb-3 text-glow">● 平衡建議 (困境與對策)</h3>
+                    <div class="bg-amber-50/50 p-5 rounded-3xl border border-amber-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-md font-bold uppercase">Balance</span>
+                            <p class="text-xs text-amber-600 font-bold">平衡建議：<span id="balance-oil-name" class="text-amber-900"></span></p>
+                        </div>
+                        <p id="balance-why" class="text-[12px] text-amber-800 font-medium leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <div class="mt-10 pt-6 border-t border-gray-100 text-center">
+                    <p id="res-date" class="text-[9px] text-gray-300 mt-2 mb-2"></p>
+                    <p class="text-[10px] text-gray-400 font-bold tracking-widest uppercase text-glow">Certified by 植感生活 | @sberry chang</p>
+                </div>
+            </div>
+            
+            <div class="mt-8 px-2 space-y-8 pb-12 text-center">
+                <button onclick="downloadResult()" class="classic-start-btn w-full bg-cyan-600 text-white font-black shadow-xl tracking-widest text-xs uppercase" style="background: #0891b2; color: white; width: 100%;">Save Identification / 保存鑑定書</button>
+                
+                <div class="advanced-card space-y-5">
+                    <div class="space-y-2 text-center">
+                        <h4 class="text-white font-black text-base italic tracking-wide text-glow">覺得準到起雞皮疙瘩？</h4>
+                        <p class="text-[11px] text-blue-100/60 leading-relaxed px-4 text-center">這僅是您靈魂的 30% 冰山一角。進階版「終極靈魂冒險」將透過完整的深度演算，直擊您內心最深處的恐懼與隱藏天賦，繪製出專屬於您的 360 度靈魂全貌。</p>
+                    </div>
+                    <a href="https://changsberry.github.io/plant-adventure/" target="_blank" class="advanced-btn shadow-2xl">[限時 FREE] 解鎖 360 度完整靈魂地圖 ➔</a>
+                </div>
+
+                <a href="https://forms.gle/f6qitrCXgerTRhwXA" target="_blank" class="block w-full text-center border border-cyan-700 text-cyan-400 py-5 rounded-3xl text-sm font-bold tracking-widest bg-white/5">領取勇者獎勵：前往識海集會 ➔</a>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <a href="https://www.facebook.com/NaturalAromaLife2026" target="_blank" class="bg-white/5 text-white/40 text-[10px] py-4 rounded-2xl text-center border border-white/10 uppercase font-bold tracking-widest">FB 植感生活</a>
+                    <a href="https://www.youtube.com/@sberry.c" target="_blank" class="bg-white/5 text-white/40 text-[10px] py-4 rounded-2xl text-center border border-white/10 uppercase font-bold tracking-widest">YT 莓好生活</a>
+                </div>
+                
+                <button onclick="location.reload()" class="w-full text-white/10 text-[9px] py-4 uppercase tracking-[0.5em]">Restart Exploration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理登入 -->
+    <div id="login-modal" class="hidden fixed inset-0 bg-black/95 z-[10001] flex items-center justify-center">
+        <div class="bg-slate-900 p-12 rounded-[40px] w-80 text-center border border-cyan-900"><h3 class="text-white mb-8 font-bold tracking-widest uppercase text-xs text-glow">Admin Access</h3><input type="password" id="admin-pwd" class="w-full bg-slate-800 text-cyan-400 text-center py-4 rounded-2xl mb-8 outline-none" placeholder="輸入密碼"><button onclick="verifyAdmin()" class="w-full bg-cyan-600 text-white py-4 rounded-2xl font-bold shadow-lg">進入數據中心</button></div>
+    </div>
+
+    <!-- 後台控制中心 -->
+    <div id="admin-panel">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="font-black text-2xl text-slate-800 tracking-tighter">數據監控中心</h2>
+            <button onclick="closeAdmin()" class="bg-slate-200 text-slate-500 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest">關閉</button>
+        </div>
+
+        <div id="admin-summary" class="grid grid-cols-2 gap-4 mb-8">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center">
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">鑑定總數量</p>
+                <h4 id="admin-total-count" class="text-4xl font-black text-blue-600 tracking-tighter">0</h4>
+            </div>
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center">
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">流量訪問</p>
+                <h4 id="admin-visit-count" class="text-4xl font-black text-slate-400 tracking-tighter">0</h4>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mb-8">
+            <button onclick="exportToCSV()" class="admin-btn-action bg-blue-600 text-white flex-grow shadow-md shadow-blue-200">下載 CSV 數據</button>
+            <button onclick="showConfirmModal()" class="admin-btn-action bg-rose-50 border border-rose-200 text-rose-500 w-32">清空數據</button>
+        </div>
+
+        <div id="admin-list-container" class="space-y-3 pb-20"></div>
+    </div>
+
+    <!-- 自定義清空確認彈窗 -->
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-black/80 z-[10002] flex items-center justify-center p-8">
+        <div class="bg-white rounded-[40px] p-8 text-center w-full max-w-sm">
+            <p class="text-4xl mb-4">⚠️</p>
+            <h3 class="text-slate-900 font-black text-xl mb-2">確定要清空所有紀錄？</h3>
+            <p class="text-slate-400 text-sm mb-8 leading-relaxed">此動作無法復原，<br>建議先下載數據備份。</p>
+            <div class="flex gap-4">
+                <button onclick="document.getElementById('confirm-modal').classList.add('hidden')" class="bg-slate-100 text-slate-500 py-4 rounded-2xl font-bold flex-1">取消</button>
+                <button onclick="executeClear()" class="bg-rose-600 text-white py-4 rounded-2xl font-bold flex-1">確定清空</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const narrationText = "這不只是一場旅行，\n而是一次潛入意識深處的靈魂洗滌。\n\n歡迎來到『靈魂識海』。\n這是一片由您的潛意識匯聚而成的浩瀚景觀。\n\n每一道潮汐、每一顆氣泡，\n都與您的內在頻率息息相關。\n\n放下『理想中』的樣貌，\n跟隨您最直覺的深海共鳴。\n\n理性與感性交織而成的，\n才是您靈魂最真實的本質。";
+
+        let currentQ = 0, counters = { flower: 0, wood: 0, leaf: 0, spice: 0, root: 0 }, history = [];
+        let fetchedData = []; // 暫存後台抓取的數據供導出
+
+        // 啟動動畫與進入邏輯
+        function startNarration() {
+            document.getElementById('landing-screen').classList.add('hidden');
+            document.getElementById('home-screen').classList.remove('hidden');
+            const audio = document.getElementById('bg-audio');
+            audio.play().catch(e => console.log("Audio blocked", e));
+            
+            let index = 0;
+            const box = document.getElementById('narration-box');
+            const timer = setInterval(() => {
+                if (index < narrationText.length) {
+                    box.innerHTML = narrationText.slice(0, index).replace(/\n/g, "<br>");
+                    index++;
+                    window.scrollTo(0, document.body.scrollHeight);
+                } else {
+                    clearInterval(timer);
+                    document.getElementById('home-action').classList.remove('hidden');
+                }
+            }, 180); 
+        }
+
+        function startQuiz() {
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            showQuestion();
+        }
+
+        // --- 人格與精油投放數據 ---
+        const resultsMap = {
+            wood: { name: "木質型", icon: "🌲", desc: "您是天生的維護者。在生活中，您沉穩、可靠，對於是非對錯有著明確的準則，像是一棵深深紮根的大樹，是所有人的避風港。", traits: ["極強的責任感，是團隊中最可靠的脊樑。","重視細節與流程，討厭不按牌理出牌。","顯得太固執、不近人情時，容易自我批判。"], soulOil: "大西洋雪松", soulTag: "#孤高之王", balanceOil: "杜松漿果", balanceWhy: "當您承載過多責任、感到身心沉重時，杜松漿果能協助您進行能量斷捨離，清理多餘的重擔，重新找回靈活的生命力。" },
+            flower: { name: "花朵型", icon: "🌸", desc: "您是溫柔的演繹者。您的心海充滿了細膩的情感，生命就是一場追求美的壯遊，習慣透過關懷他人來確認自己的存在價值。", traits: ["極具渲染力，能快速察覺他人的情緒需求。","渴望被看見與被需要，對讚美極其敏感。","有時會過度犧牲自己，來維持人際的和諧。"], soulOil: "大馬士革玫瑰", soulTag: "#高貴的孤獨", balanceOil: "甜橙", balanceWhy: "當您覺得沒人懂自己、陷入自憐情緒時，甜橙的陽光感能中和玫瑰的沉重，讓您的優雅帶上一點親和力與喜悅。" },
+            fruit: { name: "果實型", icon: "🍒", desc: "您是目標導向的潛航者。追求當下的快樂與高效產出，是團隊中的發電機，喜歡贏過昨日的自己，對成功的定義非常清晰。", traits: ["極高的執行力與適應力，是行動派。","擅長經營形象，展現自信的一面。","容易陷入工作狂模式，忽略內在感受。"], soulOil: "甜橙", soulTag: "#陽光大暖男", balanceOil: "岩蘭草", balanceWhy: "當您能量過散、做事三分鐘熱度時，岩蘭草紮根的重量能讓您強制落地，將衝勁轉化為穩定且深遠的影響力。" },
+            herb: { name: "藥草型", icon: "🌱", desc: "您是感性的覺察者。擁有極深的情感識海，對生命的苦難與美感有著超越常人的體悟，追求真實與獨特性。", traits: ["追求獨特，無法接受平庸虛偽。","情緒波動較大，對頻率非常敏銳。","天生的藝術家靈魂，總能發現生命隱喻。"], soulOil: "波旁天竺葵", soulTag: "#情感協調員", balanceOil: "胡椒薄荷", balanceWhy: "當您過度在意他人感受而委屈自己時，胡椒薄荷能帶來理性清涼，協助您在感性之海中拉出界線，釐清思緒。" },
+            leaf: { name: "葉片型", icon: "🌿", desc: "您是冷靜的觀察者。像風一樣靈活，追求資訊交換與呼吸空間，喜歡透過大數據與邏輯來理解世界。", traits: ["極度理智，能從混亂中抽離出客觀邏輯。","重視隱私與邊界感，需要獨立空間。","對於愚笨資訊，會表現出冷淡防備。"], soulOil: "迷迭香", soulTag: "#靈魂考官", balanceOil: "真正薰衣草", balanceWhy: "當您腦袋過熱、自我要求太高而導致壓力時，真正薰衣草能協助大腦強制關機，卸下過度防備的武裝。" },
+            resin: { name: "樹脂型", icon: "💧", desc: "您是穩定的守護者。習慣未雨綢繆，尋求環境安定感，對於危機敏銳，擅長將傷痕轉化為力量。", traits: ["極高忠誠度，會全力保護重要的人。","做事謹慎周全，預想所有風險。","有時會因為焦慮而猶豫不決，流於空談。"], soulOil: "乳香", soulTag: "#與天通靈者", balanceOil: "薑", balanceWhy: "當您只有想法卻缺乏行動力時，薑的溫熱能量能啟動您的腳步，讓哲學思維落地為現實中改變命運的實踐力。" },
+            seed: { name: "種籽型", icon: "🌰", desc: "您是快樂的體驗者與醞釀者。您的識海充滿陽光與氣泡，喜歡新奇事物，內含巨大的爆發潛力。", traits: ["樂觀幽默，總能帶動氣氛。","多才多藝，對世界充滿好奇。","容易透過忙碌，來逃避現實壓力。"], soulOil: "杜松漿果", soulTag: "#斷捨離大師", balanceOil: "安息香", balanceWhy: "當您淨化過度、感到空虛孤冷時，安息香能給予溫暖的抱抱，修補您在向外開拓時留下的靈魂裂縫。" },
+            spice: { name: "香料型", icon: "🌵", desc: "您是勇敢的開拓者。具備原始生命力，意志堅強，直擊問題核心，不畏衝突，渴望掌控命運。", traits: ["領導氣場強大，敢於挑戰不公。","直接、坦率，痛恨背叛欺騙。","外剛內柔，會用強硬姿態守護弱小。"], soulOil: "肉桂(中國)", soulTag: "#熱情的火種", balanceOil: "古巴香脂", balanceWhy: "當您情緒過於火爆、容易衝突時，古巴香脂能提供冷靜的緩衝空間，讓您的熱情燃燒得更持久溫潤。" },
+            root: { name: "根部型", icon: "🍠", desc: "您是平靜的融合者。接地氣、紮根穩健，追求萬物和諧平衡，像海洋底層般包容所有的波動。", traits: ["極佳傾聽者，能讓躁動的人平靜。","隨和不爭，輕易融入各種環境。","過於保守時，容易導致生命停滯不前。"], soulOil: "廣藿香", soulTag: "#內斂的土豪", balanceOil: "阿拉伯茉莉", balanceWhy: "當您的生活過於刻板、缺乏感官享受時，阿拉伯茉莉能點燃您的浪漫靈感，讓厚實的靈魂重新綻放色彩。" }
+        };
+
+        // --- 核心測驗數據 (十八題) ---
+        const quizData = [
+            { q: "進入一個完全陌生的環境（如新職場或聚會），您通常如何反應？", opts: [{ t: "觀察哪裡最受歡迎，我希望在那裡展現最好的一面。", w: "flower" }, { t: "觀察環境的規矩或秩序，確保自己行為合乎標準。", w: "wood" }, { t: "迅速蒐集現場資訊，冷靜分析目前的局勢與動向。", w: "leaf" }, { t: "展現主導權，如果有人擋到路，我會直接表達要求。", w: "spice" }, { t: "找個安靜、有安全感的位置坐下，不想被過度干擾。", w: "root" }]},
+            { q: "關於您在生活中的「渴望」，哪一個最貼近目前的您？", opts: [{ t: "我希望被重視、被喜愛，建立深厚的情感連結。", w: "flower" }, { t: "我希望凡事都有條不紊，每件事都做到正確完美。", w: "wood" }, { t: "我希望擁有絕對的自由與知識，看透事物的本質。", w: "leaf" }, { t: "我渴望掌控局面，擁有變革與保護弱小的力量。", w: "spice" }, { t: "我渴望平穩、和諧的生活，不喜歡突如其來的衝突。", w: "root" }]},
+            { q: "當您面對一個全新的挑戰或未知項目時，您的直覺是？", opts: [{ t: "這是一個展現我才華的大好機會，我很興奮。", w: "flower" }, { t: "這需要嚴密的計劃與步驟，不能隨便亂來。", w: "wood" }, { t: "這有很多可以學習的新訊息，我先收集數據看看。", w: "leaf" }, { t: "直接開始吧！遇到問題再解決，您有信心突破它。", w: "spice" }, { t: "這會不會破壞我目前的穩定？我需要多點時間準備。", w: "root" }]},
+            { q: "身邊的朋友通常怎麼形容您的性格「頻率」？", opts: [{ t: "熱情且富有感染力，像是一抹明亮的色彩。", w: "flower" }, { t: "沉穩、可靠且非常有原則，是團隊中的脊樑。", w: "wood" }, { t: "理智、冷靜且聰明，總是能客觀分析問題。", w: "leaf" }, { t: "強大、敢說敢做，帶有一種讓人無法忽視的威嚴。", w: "spice" }, { t: "溫柔、平靜，待在您身邊會感到放鬆、沒壓力。", w: "root" }]},
+            { q: "在團隊中，您最認同哪一種運作方式？", opts: [{ t: "大家感情融洽、彼此讚賞，這才是最重要的。", w: "flower" }, { t: "每個人都該各司其職，遵循明確的規則與流程。", w: "wood" }, { t: "溝通必須透明且高效率，不要浪費時間在無意義社交。", w: "leaf" }, { t: "競爭能帶來進步，有能力的人就該帶領大家擴張。", w: "spice" }, { t: "大家和平相處，不要有太大的變動與鬥爭。", w: "root" }]},
+            { q: "當您感到能量耗盡時，哪種方式最能讓您「回血」？", opts: [{ t: "找好朋友聊天、傾訴，感受被愛與支持的溫度。", w: "flower" }, { t: "整理房間或清空待辦清單，重獲對生活的掌控感。", w: "wood" }, { t: "關掉手機，獨自待著閱讀或思考，遠離所有干擾。", w: "leaf" }, { t: "做激烈的運動或聽強而有力的音樂，重燃鬥志。", w: "spice" }, { t: "安靜地睡覺或發呆，在熟悉的環境中感受平靜。", w: "root" }]},
+            { q: "與人溝通發生誤解時，您通常採取的「攻守模式」是？", opts: [{ t: "感性溝通，讓對方知道我受傷了，尋求情感和解。", w: "flower" }, { t: "據理力爭，提供完整的證據與邏輯，指出哪裡不對。", w: "wood" }, { t: "分析誤解產生的原因，將問題客觀化，修正資訊誤差。", w: "leaf" }, { t: "直接攤牌，大聲說出我的不滿，迅速解決僵局。", w: "spice" }, { t: "不想吵架，可能會先忍讓或避開，等事情自己過去。", w: "root" }]},
+            { q: "看到生活中的不公或混亂，您第一時間的念頭是？", opts: [{ t: "這讓我感到難過，希望能溫暖那些受傷害的人。", w: "flower" }, { t: "這太不合理了！這違反了應有的規則與道德標準。", w: "wood" }, { t: "這背後的機制是什麼？我想弄清楚為什麼會發生。", w: "leaf" }, { t: "我要出面制止它，不能容忍這種事情在眼前發生。", w: "spice" }, { t: "雖然無奈，但我希望先守護好我自己的這一塊小天地。", w: "root" }]},
+            { q: "您理想的工作或生活空間，最優先配置的是？", opts: [{ t: "具備極佳的視覺與美感，能讓您感到快樂與自信。", w: "flower" }, { t: "整潔有序的規劃，所有的物件都在應有的位置上。", w: "wood" }, { t: "高效的資訊存取工具，能讓您安靜思考不被打擾。", w: "leaf" }, { t: "代表權力或成就感的裝飾，展現您的風格與影響力。", w: "spice" }, { t: "舒適、溫馨且極具安全感的角落，能讓您放鬆紮根。", w: "root" }]},
+            { q: "遇到突如其來的巨大變故（風暴），您的第一個動作是？", opts: [{ t: "感受情緒的波動，尋求朋友的安慰與共振。", w: "flower" }, { t: "立即啟動應急預案，冷靜地維持系統穩定。", w: "wood" }, { t: "冷眼觀察局勢，分析數據，尋找最優撤退路徑。", w: "leaf" }, { t: "激發鬥志，這雖然是困難但也是變革的契機。", w: "spice" }, { t: "緊縮自己的防守，無視外界混難，守住核心安全。", w: "root" }]},
+            { q: "面對一個您完全無法跨越的困難（斷層），您會？", opts: [{ t: "思考這在您的生命劇本中代表什麼樣的感性隱喻。", w: "flower" }, { t: "精確測量困難的程度，尋找符合基準的跨越方案。", w: "wood" }, { t: "觀察洋流（趨勢），將自己化為流體，尋找更省力的路。", w: "leaf" }, { t: "運用意志力硬衝過去，我不相信有什麼能阻擋我。", w: "spice" }, { t: "暫時停下來，守住現有的成果，等局勢穩定。", w: "root" }]},
+            { q: "關於「他人對您的誤解」，哪種情況最讓您抓狂？", opts: [{ t: "我的真心被無視，覺得沒人理解我。", w: "flower" }, { t: "我的專業或操守被質疑，覺得被扣了不實指控。", w: "wood" }, { t: "我的隱私被侵犯，或是被捲入低智商的爭執。", w: "leaf" }, { t: "我的權威被挑戰，或是被迫接受不公平的控制。", w: "spice" }, { t: "我的生活被打亂，被迫面對不和諧的衝突。", w: "root" }]},
+            { q: "看著那些光芒四射、表現卓越的人，您心裡的 OS 是？", opts: [{ t: "我也希望能像他們一樣，獲得眾人的讚美與光采。", w: "flower" }, { t: "他們一定付出了極大的自律，才維持了這種高度。", w: "wood" }, { t: "這背後的成功邏輯是什麼？我也想學習其核心智慧。", w: "leaf" }, { t: "總有一天我會超越他們，贏得屬於我的掌控地位。", w: "spice" }, { t: "只要不影響我的平靜生活，優秀與否我並不強求。", w: "root" }]},
+            { q: "身體感到疲憊或失衡時，您的第一直覺反應通常是？", opts: [{ t: "尋找精油或溫暖的洗澡水，透過感官徹底放鬆。", w: "flower" }, { t: "反思最近的作息是否紊亂，制定科學的修正清單。", w: "wood" }, { t: "深呼吸、冥想，將大腦中的雜訊淨化，重獲清透感。", w: "leaf" }, { t: "吃點重口味或刺激的事物，強迫身體動起來。", w: "spice" }, { t: "直接睡覺，什麼都不想，讓自己重新與地心引力連結。", w: "root" }]},
+            { q: "如果您即將離開目前的職位或環境，您最想留下什麼？", opts: [{ t: "一段美麗的故事與深刻的人情味，讓大家記得我。", w: "flower" }, { t: "一套完美的規範與秩序，讓後來的人有跡可循。", w: "wood" }, { t: "一份珍貴的專業數據或智慧財產，讓知識流動。", w: "leaf" }, { t: "一個被徹底開拓過的局面，證明我曾征服過。", w: "spice" }, { t: "一個穩定的根基與平靜的氣氛，讓大家有依賴感。", w: "root" }]},
+            { q: "回歸現實，您認為要在這社會生存最強大的能力是？", opts: [{ t: "情感的感染力。能讓人與人產生深度連結的能力。", w: "flower" }, { t: "自律的結構力。能讓生活在混亂中維持穩定的能力。", w: "wood" }, { t: "智慧的流動性。在萬變中保持客觀洞察的能力。", w: "leaf" }, { t: "強悍的變革力。能打破現狀、開疆闢土的能力。", w: "spice" }, { t: "紮根的韌性力。在逆境中安靜守護與生存的能力。", w: "root" }]},
+            { q: "您覺得人生最無法忍受的慘狀是？", opts: [{ t: "被冷落、被遺忘，沒人看見我的價值。", w: "flower" }, { t: "沒效率、出錯，身處於毫無邏輯的混亂中。", w: "wood" }, { t: "被干擾、被迫社交，失去獨立思考的自由空間。", w: "leaf" }, { t: "被操控、被軟禁，失去對生命的主導權與力量。", w: "spice" }, { t: "被拋棄、失去依賴，懸浮在半空中沒有安定感。", w: "root" }]},
+            { q: "最後，如果要您用一種意象定義您的內在識海？", opts: [{ t: "璀璨的寶石海域。追求美感、情感與極致的演繹。", w: "flower" }, { t: "古老的沉船書庫。追求正確、秩序與結構的維護。", w: "wood" }, { t: "深邃的透明水流。追求數據、真相與智慧的觀察。", w: "leaf" }, { t: "沸騰的熱液噴口。追求衝勁、意志與疆界的開拓。", w: "spice" }, { t: "靜謐的厚實海床。追求平穩、紮根與永恆的守護。", w: "root" }]}
+        ];
+
+        // --- 核心邏輯 ---
+        function showQuestion() {
+            const data = quizData[currentQ];
+            document.getElementById('q-number').innerText = `${String(currentQ+1).padStart(2,'0')} / 18`;
+            document.getElementById('question-text').innerText = data.q;
+            document.getElementById('progress-fill').style.width = ((currentQ+1) / 18 * 100) + '%';
+            document.getElementById('back-btn').classList.toggle('hidden', currentQ === 0);
+            const box = document.getElementById('options-box'); box.innerHTML = '';
+            let options = [...data.opts].sort(() => Math.random() - 0.5);
+            options.forEach(opt => {
+                const b = document.createElement('button'); b.className = 'option-btn'; b.innerText = opt.t;
+                b.onclick = () => { counters[opt.w]++; history.push(opt.w); currentQ++; if(currentQ < 18) showQuestion(); else showNameInput(); };
+                box.appendChild(b);
+            });
+            window.scrollTo(0,0);
+        }
+
+        function goBack() { if(currentQ > 0) { const prevW = history.pop(); counters[prevW]--; currentQ--; showQuestion(); } }
+        function showNameInput() { document.getElementById('quiz-screen').classList.add('hidden'); document.getElementById('name-screen').classList.remove('hidden'); }
+
+        async function calculateResult() {
+            const name = document.getElementById('user-name').value || "旅者";
+            const c = counters;
+            const scores = {
+                wood: (c.wood * 10) + (c.root * 2), flower: (c.flower * 10) + (c.root * 2),
+                fruit: (c.flower * 6) + (c.spice * 6), herb: (c.flower * 10),
+                leaf: (c.leaf * 10) + (c.wood * 2), resin: (c.root * 8) + (c.wood * 4),
+                seed: (c.leaf * 8) + (c.flower * 4), spice: (c.spice * 10), root: (c.root * 10)
+            };
+            let winner = 'wood', max = -1;
+            for(let key in scores) if(scores[key] > max) { max = scores[key]; winner = key; }
+            const res = resultsMap[winner];
+            
+            document.getElementById('res-icon').innerText = res.icon;
+            document.getElementById('res-type').innerText = res.name;
+            document.getElementById('res-desc').innerText = res.desc;
+            
+            const traitsBox = document.getElementById('res-traits'); traitsBox.innerHTML = '';
+            res.traits.forEach(t => { traitsBox.innerHTML += `<li>${t}</li>`; });
+            
+            document.getElementById('soul-oil-name').innerText = res.soulOil;
+            document.getElementById('soul-oil-tag').innerText = res.soulTag;
+            document.getElementById('balance-oil-name').innerText = res.balanceOil;
+            document.getElementById('balance-why').innerText = res.balanceWhy;
+            
+            document.getElementById('res-date').innerText = "鑑定日期: " + new Date().toLocaleDateString();
+            
+            if(window.apiSaveData) await window.apiSaveData({ userName: name, resultType: res.name, essentialOil: res.soulOil });
+            document.getElementById('name-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            window.scrollTo(0,0);
+        }
+
+        function downloadResult() {
+            html2canvas(document.getElementById('capture-area'), { scale: 3 }).then(canvas => {
+                const link = document.createElement('a'); link.download = `鑑定報告-${document.getElementById('user-name').value}.png`;
+                link.href = canvas.toDataURL(); link.click();
+                document.getElementById('success-modal').classList.remove('hidden');
+            });
+        }
+
+        // --- 後台管理邏輯 ---
+        function showLoginModal() { document.getElementById('login-modal').classList.remove('hidden'); }
+        function hideLoginModal() { document.getElementById('login-modal').classList.add('hidden'); }
+        function verifyAdmin() { if(document.getElementById('admin-pwd').value === "811694") { hideLoginModal(); document.getElementById('admin-panel').style.display = 'block'; renderAdminData(); } }
+        function closeAdmin() { document.getElementById('admin-panel').style.display = 'none'; }
+        
+        async function renderAdminData() {
+            const data = await window.apiFetchAdminData();
+            fetchedData = data.results;
+            document.getElementById('admin-total-count').innerText = data.stats.completeCount || 0;
+            document.getElementById('admin-visit-count').innerText = data.stats.visitCount || 0;
+            
+            const listContainer = document.getElementById('admin-list-container');
+            listContainer.innerHTML = '';
+            
+            data.results.sort((a,b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0)).forEach(item => {
+                const time = item.updatedAt ? new Date(item.updatedAt.seconds * 1000).toLocaleString() : 'N/A';
+                listContainer.innerHTML += `
+                    <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center border border-slate-50">
+                        <div class="space-y-1">
+                            <strong class="text-slate-800 text-sm">${item.userName}</strong>
+                            <div class="flex gap-2 items-center">
+                                <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px] font-bold">${item.resultType}</span>
+                                <span class="text-slate-300 text-[10px]">${time}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function exportToCSV() {
+            if (fetchedData.length === 0) return;
+            let csvContent = "data:text/csv;charset=utf-8,姓名,鑑定結果,靈魂精油,時間\n";
+            fetchedData.forEach(row => {
+                const time = row.updatedAt ? new Date(row.updatedAt.seconds * 1000).toLocaleString() : 'N/A';
+                csvContent += `${row.userName},${row.resultType},${row.essentialOil},${time}\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `靈魂識海數據_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+        }
+
+        function showConfirmModal() { document.getElementById('confirm-modal').classList.remove('hidden'); }
+        async function executeClear() {
+            const btn = event.target;
+            btn.innerText = "清空中...";
+            const success = await window.apiClearAllData();
+            if (success) {
+                document.getElementById('confirm-modal').classList.add('hidden');
+                renderAdminData();
+            }
+            btn.innerText = "確定清空";
+        }
+    </script>
+</body>
+</html>
